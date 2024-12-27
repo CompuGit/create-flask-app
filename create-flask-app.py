@@ -27,7 +27,7 @@ def create_project_structure(project_name):
         f"{project_name}/app/__init__.py": INIT_PY,
         f"{project_name}/app/settings.py": SETTINGS_PY.format(app_name=project_name),
         f"{project_name}/app/routes/__init__.py": ROUTES_INIT_PY,
-        f"{project_name}/app/routes/user_routes.py": USER_ROUTES_PY,
+        f"{project_name}/app/routes/users_routes.py": USERS_ROUTES_PY,
         f"{project_name}/app/models/__init__.py": "",
         f"{project_name}/app/schemas/__init__.py": "",
     }
@@ -88,6 +88,7 @@ def print_success_message(project_name):
 
 # content for project files
 ENV = '''\
+API_KEY=your_sample_api_key
 '''
 
 FLASKENV = '''\
@@ -154,13 +155,19 @@ def get_api_doc_json():
 """
 
 SETTINGS_PY = '''\
+import os
+from dotenv import load_dotenv
+
+load_dotenv('.env')
+
+API_KEY = os.getenv('API_KEY')
 APP_VERSION = '1.0'
 APP_NAME = '{app_name}'
 '''
 
 ROUTES_INIT_PY = """\
 from flask_swagger_ui import get_swaggerui_blueprint
-from app.routes.user_routes import user_blueprint
+from app.routes.users_routes import users_blueprint
 
 # Swagger UI route
 SWAGGER_URL = '/swagger'
@@ -175,66 +182,48 @@ swaggerui_blueprint = get_swaggerui_blueprint(
 
 def register_routes(app):
     app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
-    app.register_blueprint(user_blueprint, url_prefix="/api/user")
+    app.register_blueprint(users_blueprint, url_prefix="/api/users")
 """
 
-USER_ROUTES_PY = """\
-from flask import Blueprint, jsonify
+USERS_ROUTES_PY = """\
+from flask import Blueprint, jsonify, current_app, request
 
-user_blueprint = Blueprint("user", __name__)
+users_blueprint = Blueprint("users", __name__)
 
-@user_blueprint.route("/", methods=["GET"])
-def get_user():
+@users_blueprint.get("/")
+def get_users():
     '''
-        get all users
+        get users list
         ---
         tags:
           - users
-        definitions:
-          - schema:
-              id: Group
-              properties:
-                name:
-                 type: string
-                 description: the group's name
-        parameters:
-          - in: body
-            name: body
-            schema:
-              id: User
-              required:
-                - email
-                - name
-              properties:
-                email:
-                  type: string
-                  description: email for user
-                name:
-                  type: string
-                  description: name for user
-                address:
-                  description: address for user
-                  schema:
-                    id: Address
-                    properties:
-                      street:
-                        type: string
-                      state:
-                        type: string
-                      country:
-                        type: string
-                      postalcode:
-                        type: string
-                groups:
-                  type: array
-                  description: list of groups
-                  items:
-                    $ref: "#/definitions/Group"
+            
+        responses:
+          200:
+            description: User List
+    '''
+    db = current_app.extensions["db"]
+    data = db.users.find_one({},{'_id':0})
+    return jsonify(data)
+
+@users_blueprint.get("/<user_id>")
+def get_user(user_id):
+    '''
+        get user with mongodb's ObjectId
+        ---
+        tags:
+          - users
+            
         responses:
           201:
-            description: User created
+            description: User Found
+          404:
+            description: User Not Found
     '''
-    return jsonify({"message": "Hello, Flask RESTful API!"})
+    db = current_app.extensions["db"]
+    ObjectId = current_app.extensions['ObjectId']
+    data = db.users.find_one({'_id': ObjectId(user_id)},{'_id':0})
+    return (jsonify(data), 201) if data else (jsonify({'message':'User Not Found'}), 404)
 """
 
 
