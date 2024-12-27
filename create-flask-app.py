@@ -20,6 +20,7 @@ def create_project_structure(project_name):
     files = {
         f"{project_name}/.env": ENV,
         f"{project_name}/.flaskenv": FLASKENV,
+        f"{project_name}/.gitignore": GITIGNORE,
         f"{project_name}/README.md": README_MD,
         f"{project_name}/requirements.txt": REQUIREMENTS_TXT,
         f"{project_name}/run.py": RUN_PY,
@@ -51,6 +52,29 @@ def get_swagger_sample_doc_json(project_name):
     print('\n[+] Downloading swagger sample API Doc json')
     os.system(f'curl https://petstore.swagger.io/v2/swagger.yaml > {project_name}/app/docs/swagger_sample_api_doc.yaml')
 
+def is_git_installed():
+    try:
+        subprocess.run(["git", "--version"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except FileNotFoundError:
+        return False
+
+def initialize_git_repo(project_name):
+    if not is_git_installed():
+        print("Error: Git is not installed. Please install Git and try again.")
+        return
+    os.chdir(project_name)
+    try:
+      subprocess.run(["git", "init"], check=True)
+      subprocess.run(["git", "add", "."], check=True)
+      subprocess.run(["git", "commit", "-m", "Initial commit"], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error during Git operations: {e}")
+        return
+    finally:
+        os.chdir("..")
+        print("\n[+] Git repository initialized and initial commit created.")
+
 def print_success_message(project_name):
     print()
     print(format(' SUCCESS ','=^30'))
@@ -71,6 +95,20 @@ FLASK_APP=app
 FLASK_RUN_HOST=0.0.0.0
 FLASK_DEBUG=True
 FLASK_RUN_PORT=5000
+'''
+
+GITIGNORE = '''\
+# Python
+__pycache__/
+.env
+.venv/
+
+# Flask
+instance/
+*.pyc
+
+# General
+.DS_Store
 '''
 
 README_MD = '''\
@@ -205,4 +243,5 @@ if __name__ == "__main__":
     create_project_structure(project_name)
     setup_virtualenv(project_name)
     get_swagger_sample_doc_json(project_name)
+    initialize_git_repo(project_name)
     print_success_message(project_name)
